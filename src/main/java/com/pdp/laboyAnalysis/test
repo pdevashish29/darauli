@@ -1,0 +1,656 @@
+public String technicianReport(){
+		 
+		 HttpServletRequest request = ServletActionContext.getRequest();
+		 RegistrationVO registrationVO = (RegistrationVO)session.get(AppConstants.USER_SESSION_BEAN);
+		 long businessId = 0;
+		 if(registrationVO != null)
+			 businessId = registrationVO.getId();
+		 try{
+			 Calendar calendar = Calendar.getInstance();
+			int month = request.getParameter("month")==null ||"".equals(request.getParameter("month"))?calendar.get(Calendar.MONTH):Integer.parseInt(request.getParameter("month"));
+			int year = request.getParameter("year")==null ||"".equals(request.getParameter("year"))?calendar.get(Calendar.YEAR):Integer.parseInt(request.getParameter("year"));
+			firstDay = request.getParameter("fDay")==null ||"".equals(request.getParameter("fDay"))?calendar.getActualMinimum(Calendar.DATE):Integer.parseInt(request.getParameter("year"));
+			if(toDate == null){
+				calendar.set(Calendar.MONTH,month);
+				calendar.set(Calendar.YEAR,year);
+				lastDay = request.getParameter("lDay")==null ||"".equals(request.getParameter("lDay"))?calendar.getActualMaximum(Calendar.DAY_OF_MONTH):Integer.parseInt(request.getParameter("year"));
+				calendar.set(Calendar.DAY_OF_MONTH, lastDay);
+				toDate=DateUtility.formateDate(calendar.getTime(),"MM/dd/yyyy");
+				
+			}
+			if(fromDate == null){
+				calendar.set(Calendar.MONTH,month);
+				calendar.set(Calendar.DAY_OF_MONTH, firstDay);
+				calendar.set(Calendar.YEAR,year);
+				fromDate=DateUtility.formateDate(calendar.getTime(),"MM/dd/yyyy");
+				
+			}
+			 List<Object[]> list = new EstimateDAO().getAllTechReport(businessId, fromDate, toDate);				
+			 request.setAttribute("techReport", list);
+			 request.setAttribute("fromDate", fromDate);
+			 request.setAttribute("toDate", toDate);
+			 setGraphData(businessId);
+		 }catch (Exception e) {
+			e.printStackTrace();
+		}
+		return ActionSupport.SUCCESS;
+	 }
+	 
+	 
+	 =====================================================
+	 
+	 
+	 
+	 public String technicianReport(){
+		 
+		 HttpServletRequest request = ServletActionContext.getRequest();
+		 RegistrationVO registrationVO = (RegistrationVO)session.get(AppConstants.USER_SESSION_BEAN);
+		 long businessId = 0;
+		 if(registrationVO != null)
+			 businessId = registrationVO.getId();
+		 try{
+			 Calendar calendar = Calendar.getInstance();
+			int month = request.getParameter("month")==null ||"".equals(request.getParameter("month"))?calendar.get(Calendar.MONTH):Integer.parseInt(request.getParameter("month"));
+			int year = request.getParameter("year")==null ||"".equals(request.getParameter("year"))?calendar.get(Calendar.YEAR):Integer.parseInt(request.getParameter("year"));
+			firstDay = request.getParameter("fDay")==null ||"".equals(request.getParameter("fDay"))?calendar.getActualMinimum(Calendar.DATE):Integer.parseInt(request.getParameter("year"));
+			if(toDate == null){
+				calendar.set(Calendar.MONTH,month);
+				calendar.set(Calendar.YEAR,year);
+				lastDay = request.getParameter("lDay")==null ||"".equals(request.getParameter("lDay"))?calendar.getActualMaximum(Calendar.DAY_OF_MONTH):Integer.parseInt(request.getParameter("year"));
+				calendar.set(Calendar.DAY_OF_MONTH, lastDay);
+				toDate=DateUtility.formateDate(calendar.getTime(),"MM/dd/yyyy");
+				
+			}
+			if(fromDate == null){
+				calendar.set(Calendar.MONTH,month);
+				calendar.set(Calendar.DAY_OF_MONTH, firstDay);
+				calendar.set(Calendar.YEAR,year);
+				fromDate=DateUtility.formateDate(calendar.getTime(),"MM/dd/yyyy");
+				
+			}
+			 List<Object[]> list = new EstimateDAO().getAllTechReport(businessId, fromDate, toDate);				
+			 request.setAttribute("techReport", list);
+			 request.setAttribute("fromDate", fromDate);
+			 request.setAttribute("toDate", toDate);
+			 setGraphData(businessId);
+		 }catch (Exception e) {
+			e.printStackTrace();
+		}
+		return ActionSupport.SUCCESS;
+	 }
+	 
+	 ==========================================================================================
+	 
+	 
+	 
+	 <%@ page language="java" import="java.util.*" pageEncoding="ISO-8859-1"%>
+<%@page import="java.text.DecimalFormat"%>
+<%@page import="org.odhc.rainbow.constants.AppConstants"%>
+<%@page import="java.math.BigDecimal"%>
+<%@page import="java.text.SimpleDateFormat"%>
+<%
+		String path = request.getContextPath();
+		Calendar calendar = Calendar.getInstance();
+		int currentYear=calendar.get(Calendar.YEAR);
+		int month = request.getParameter("month")==null || "".equals(request.getParameter("month"))?calendar.get(Calendar.MONTH):Integer.parseInt(request.getParameter("month"));
+		int year = (request.getParameter("year")==null || "".equals(request.getParameter("year")))?currentYear:Integer.parseInt(request.getParameter("year"));
+		String toDate=(String)(request.getAttribute("toDate")==null?"":request.getAttribute("toDate"));
+		String fromDate=(String)(request.getAttribute("fromDate")==null?"":request.getAttribute("fromDate"));
+		List<Object[]> techList = (List<Object[]>)request.getAttribute("techReport");
+		DecimalFormat decimalFormat = new DecimalFormat("#0.00");
+		SimpleDateFormat simpleDateFormat = new SimpleDateFormat("dd-MMM-yy");
+		String req = request.getParameter("req");
+%>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+ <title><%=AppConstants.APP_NAME_TITLE%></title>
+  	<LINK REL="SHORTCUT ICON" HREF="<%=path%>/favicon.ico">
+  	<%if(req==null || "".equals(req) || "null".equalsIgnoreCase(req)){ %>
+    <link rel="stylesheet" href="<%=path %>/css/main.css" type="text/css" />
+    <%} %>
+	<link rel="stylesheet" href="<%=path%>/upm/style.css" />		
+	<script type="text/javascript" src="<%=path%>/scripts/jquery.js"></script>  
+	<link rel="stylesheet" href="<%=path%>/css/myForm.css">
+	<script type="text/javascript" src="<%=path%>/scripts/jquery.ui.datepicker.js"></script>
+	<script type="text/javascript" src="<%=path%>/scripts/jquery.ui.core.js"></script>
+	<link rel="stylesheet" type="text/css" href="<%=path %>/css/jquery.ui.all.css"/>
+	<link type="text/css" rel="stylesheet" href="<%=path %>/estimateUI/setting/ShopliteSettings.css"/>
+	<link type="text/css" rel="stylesheet" href="<%=path%>/estimateUI/script/jquery.ui.timepicker.css"/>
+	<script type="text/javascript" src="<%=path %>/js/kendo.all.min.js"></script>
+	<script type="text/javascript" src="<%=path %>/js/graps.js"></script>
+	<script type="text/javascript" src="<%=path%>/scripts/estimateUI.js"></script>
+	<script type="text/javascript" src="<%=path %>/estimateUI/script/jquery.ui.timepicker.js"></script>
+
+	<style type="text/css">
+		.mainTableW {
+		    border: 2px solid #ECECEC;
+		    border-radius: 10px 10px 10px 10px;
+		    margin-bottom: 7px;
+		    margin-left: 3px;
+		    margin-top: 10px;
+		    width: 99%;
+    	}
+		#searchDiv {
+			background-color: #e6eeff;
+			padding: 3px;
+		}
+		#searchDiv a {
+			cursor: pointer;
+		}
+		#searchDiv li {
+			display: inline-block;
+			padding: 1px;
+			border: 1px solid #7FAAFF;
+			margin-left: 4px;
+			font-size: 12px;
+
+		}
+		text{
+			fill:white;
+		}
+		.dataDiv text{
+			fill:black;
+		}
+		.bigGraph table th{
+			font-weight: normal;
+			border: 1px solid #ccc;
+			background-color: #3E99EE;
+			color:white;
+		}
+		.bigGraph table td{
+			font-size: 13px;
+			border: 1px solid #ccc;
+			padding-right:4px;
+		}
+		.bigGraph table{
+			line-height:23px;
+			border-collapse: collapse;
+		}
+		div.closeMe {			
+			background-image: url("<%= path%>/images/close.gif");
+			background-position: center bottom;
+			background-repeat:no-repeat;
+			cursor: pointer;
+			width:30px;
+			height:30px;
+			margin:5px;
+			position: absolute;
+			right:-20px;  
+			top: -20px;	
+		}
+		.backFrame {
+			position:fixed;
+			display:none;		
+			z-index : 1000;		
+			filter : Alpha(Opacity=50);
+			opacity : 0.5;
+			background:#000;
+			top: 0;
+			left: 0;
+		}	
+		div.closeMe:hover {
+			background-image:url("<%= path%>/images/close.gif");
+			background-position: center top;
+			background-repeat: no-repeat;
+			cursor: pointer;
+			width: 30px;
+			height: 30px;
+			margin: 5px;
+			position: absolute;
+			right: -20px;  
+			top: -20px;	
+		}	
+		.dataDiv{
+			position:absolute;
+			display:none;			
+			z-index : 2000;
+			margin: 0 auto;
+			left: 0;
+			top: 0;
+			right:0;
+			background-color: #fff;
+			-moz-box-shadow:0px 0px 5px 5px #fff;
+			-webkit-box-shadow:0px 0px 5px 5px #fff;
+			border:0px #55AAFF outset;  
+	 		border-radius:5px 5px 5px 5px;	
+		  	padding:5px;
+		  	width:800px;
+		}
+		.selected {
+			background-color: #8DAFE2;
+		}
+		
+		@MEDIA  print{
+			#laborHeader,#graphHeader,.tableHeader,#searchDiv,#filterDiv {
+				display:none;
+			}
+			.mainTableW{
+				border:none;
+			}
+		}	
+	</style>
+	<script type="text/javascript">
+		function showTrace(that){
+			var year = $("#year").val();
+			var month = $(that).attr("id");
+			<%if(req==null || "".equals(req) || "null".equalsIgnoreCase(req)){ %>
+				window.location.href ="<%=path%>/technicianReport.action?year="+year+"&month="+month;
+			<%}else{%>
+				var urlValue = "<%=path%>/technicianReport.action?req=reports&year="+year+"&month="+month;
+				laborReportByFilter(urlValue);
+			<%}%>
+		}
+		function showTraceByYear(){
+			var year = $("#year").val();
+			var month = 0;
+			if(typeof($("ul li.selected").find("a").attr("id")) !='undefined')
+				month = $("ul li.selected").find("a").attr("id");
+			<%if(req==null || "".equals(req) || "null".equalsIgnoreCase(req)){ %>
+				window.location.href ="<%=path%>/technicianReport.action?year="+year+"&month="+month;
+			<%}else{%>
+				var urlValue = "<%=path%>/technicianReport.action?req=reports&year="+year+"&month="+month;
+				laborReportByFilter(urlValue);
+			<%}%>
+		}
+		function showSelected(month){
+			$("li a").each(function (){
+				if($(this).attr("id")==month){
+					$(this).parent().addClass("selected");
+					$(this).css("color","#fff");
+				}
+				else{
+					$(this).parent().removeClass("selected");	
+				}
+			});
+		}
+		function searchRecords(){
+			var fromDate = $("#fromDate").val();
+			var toDate=$("#toDate").val();
+			<%if(req==null || "".equals(req) || "null".equalsIgnoreCase(req)){ %>
+				window.location.href ="<%=path%>/technicianReport.action?fromDate="+fromDate+"&toDate="+toDate;
+			<%}else{%>
+				var urlValue = "<%=path%>/technicianReport.action?req=reports&fromDate="+fromDate+"&toDate="+toDate;
+				laborReportByFilter(urlValue);
+			<%}%>
+					
+		}			
+		function loadGraph(){
+         	createPartNumberChart(${estimateData},"estimateGraph",${max},0);
+			createPartNumberChart(${salesData},"salesGraph",${max},0);
+			createPartNumberChart(${purchaseData},"purchaseGraph",${max},0);
+        }
+        
+        function saveTechHour(that){
+	        var serviceId = $(that).parent().attr("serviceId");
+	        var start = typeof($(that).parent().parent().find("input[name=startHour]").val())!="undefined" ? $(that).parent().parent().find("input[name=startHour]").val() : $(that).parent().parent().find("#start").text() ;
+	        var end = typeof($(that).parent().parent().find("input[name=endHour]").val())!="undefined" ? $(that).parent().parent().find("input[name=endHour]").val() : $(that).parent().parent().find("#end").text() ;
+	        var total =  $(that).parent().parent().find("input[name=totalHour]").val();
+	        var onlyPackage = $(that).attr("onlyPackage").trim();
+	        console.log(start);
+	       	$.ajax({
+        		url:"<%=path%>/saveTechHour.action",
+        		data:{
+        			serviceId:serviceId,
+	        		start:start,
+	        		end:end,
+	        		total:total,
+	        		onlyPackage:onlyPackage	
+        		},
+        		success:function(response){
+        			if(response.trim()=="success"){
+        				$(that).parent().parent().find("td#startEndTimeTd").html("<span id='start' style=' float: left;'>"+start+"</span>	<span id='end' style='  float: right;'>"+end+"</span>");
+        				$(that).parent().parent().find("td#act").html(total);
+        				$(that).parent().html("<span onclick='editTechHour(this)' onlyPackage='"+onlyPackage+"' style='background:green;color:#fff;padding:10px 13px;border-radius:5px;text-align:center;'>Edit</span>");
+        				
+        				
+        			}
+        		},
+        		error:function(){
+        		
+        		}
+        	
+        	
+        	});
+        }
+        
+        function editTechHour(that){
+        	var onlyPackage = $(that).attr("onlyPackage");
+        	var start =$(that).parent().parent().find("td:eq(5)").find("span#start").text();
+        	var end =$(that).parent().parent().find("td:eq(5)").find("span#end").text();;
+        	var total =$(that).parent().parent().find("td:eq(6)").text().trim();
+        	$(that).parent().parent().find("td:eq(6)").html("<input type='text' name='totalHour' value='"+total+"' style='width:60px;padding:5px;text-align:right;'>");
+        	$(that).parent().parent().find("td:eq(5)").html("<input type='text' name='startHour' onchange='calculateHour(this)' value='"+start+"' style='width:60px;padding:5px;margin-right:2px;text-align:right;float:left;margin-left:5px;'><input value='"+end+"' onchange='calculateHour(this)' type='text' name='endHour' onkeyup='calculateHour(this)' style='width:60px;padding:5px;text-align:right;margin-right:5px;'>");
+        	$(that).parent().html("<span onclick='saveTechHour(this)' onlyPackage='"+onlyPackage+"' style='background:#499bea;color:#fff;padding:10px;border-radius:5px;text-align:center;cursor:pointer;'>Save</span>");
+       		
+		}
+        function calculateHour(that){
+        	var start = typeof($(that).parent().parent().find("input[name=startHour]").val())!="undefined" ? $(that).parent().parent().find("input[name=startHour]").val() : $(that).parent().parent().find("#start").text() ;
+        	var end = 	typeof($(that).parent().parent().find("input[name=endHour]").val())!="undefined" ? $(that).parent().parent().find("input[name=endHour]").val() : $(that).parent().parent().find("#end").text() ;
+        	if(start.indexOf(":")==-1){
+        		start +=":";
+        	}
+        	if(end.indexOf(":")==-1){
+        		end +=":";
+        	}
+        	var startHr = (start.split(":")[0])==''||typeof((start.split(":")[0]))=='undefined'?0:(start.split(":")[0]);
+        	var startMin = (start.split(":")[1]).split(" ")[0]==''||typeof((start.split(":")[1])).split(" ")[0]=='undefined'?0:(start.split(":")[1]).split(" ")[0];
+        	//var startForm = (start.split(":")[1]).split(" ")[1]==''||typeof((start.split(":")[1])).split(" ")[1]=='undefined'?0:(start.split(":")[1]).split(" ")[1];
+        	
+        	var endHr =  (end.split(":")[0])==''||typeof((end.split(":")[0]))=='undefined'?0:(end.split(":")[0]);
+        	var endMin = (end.split(":")[1]).split(" ")[0]==''||typeof((end.split(":")[1]).split(" ")[0])=='undefined' ?0:(end.split(":")[1]).split(" ")[0];
+        	//var endForm = (end.split(":")[1]).split(" ")[1]==''||typeof((end.split(":")[1]).split(" ")[1])=='undefined' ?0:(end.split(":")[1]).split(" ")[1];
+        	var differenceHr = 0;
+        	var differenceMin = 0;
+        	//var modulus = 0;
+        	if(new Number(startHr)>new Number(endHr)){
+        		endHr = new Number(endHr)+24;
+        		if(new Number(startMin)>new Number(endMin)){
+        			endHr = new Number(endHr)-1;
+        			endMin = new Number(endMin)+60;
+        			
+        		}
+        	}
+        	
+        	if(!isNaN(endHr) && !isNaN(startHr)){
+        		differenceHr = new Number(startHr)-new Number(endHr);
+        	}
+        	if(!isNaN(endMin) && !isNaN(startMin)){
+        		differenceMin = new Number(endMin)- new Number(startMin);
+        	}
+        	if(new Number(differenceMin)<0){
+        		differenceMin = -differenceMin;
+        	}
+        	if(new String(differenceMin).length==1){
+        		differenceMin ="0"+differenceMin;
+        		
+        	}
+        	
+        	if(typeof(start)!='undefined' && typeof(end)!='undefined' && !isNaN(differenceHr) && !isNaN(differenceMin)&& start.trim() !=':' && end.trim() !=':'){
+        		$(that).parent().parent().find("input[name=totalHour]").val(Math.abs(differenceHr)+"."+differenceMin);
+        	}
+        	
+        	
+        }
+        
+        function filterTech(that){
+        	var value= $(that).val().toUpperCase().trim();
+        	var tot = $(".techTable tbody:eq(0)").children().length
+        	var totalHour = 0;
+        	$(".techTable tr").each(function(index){
+        		if(index>0 ){
+	        		var tdText = $(this).find("td:eq(0)").text().toUpperCase().trim();
+	        		if(tdText.indexOf(value) != -1){
+	        			$(this).show();
+	        		}else{
+	        			$(this).hide();
+	        		}
+	        		
+        		}
+        	});
+        	
+        	$(".techTable tr:visible").each(function(){
+        		totalHour +=new Number($(this).find("td:eq(6)").text());
+        	
+        	});
+        	
+        	$(".techTable tbody:eq(1)").children().each(function(){
+        		$(this).show();
+        	});
+        	var temp = "<tr class='totHRTr'><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td style='padding:5px;text-align:right;font-weight:bold;font-size:18px;'>Total Hour</td><td style='padding:5px;text-align:right;font-weight:bold;font-size:18px;'>"+totalHour.toFixed(2)+"</td><td>&nbsp;</td></tr>" ;
+        	$(".techTable tbody:eq(0)").find(".totHRTr").remove();
+        	$(".techTable tbody:eq(0) tr:visible").last().after(temp);
+        		
+        	if(value==''){
+        		$(".techTable tbody:eq(1)").show();
+        		$(".techTable tbody:eq(0)").find(".totHRTr").remove();
+        	}else{
+       		 	$(".techTable tbody:eq(1)").hide();
+        	}
+        }
+        
+        function laborReportByFilter(urlValue){
+			$("#reportsDetailMenu").html("<div><img style='position: absolute; margin:0px auto;left:0px;right:0px;height:50px;margin-top: 60px;' src='<%=path %>/images/loading.gif'></div>")
+        	$.ajax({
+				url:urlValue,
+				dataType:'html',
+				async:false,
+				success:function(response){
+					$("#reportsDetailMenu").html(response);
+						loadGraph();
+				},error:function(){
+					$("#reportsDetailMenu").hide();
+					alert("Service is not available");
+				}
+			});	
+		}
+	</script>
+  </head>
+  
+  <body class="pgCenter"  onload="loadGraph();">
+  <%if(req==null || "".equals(req) || "null".equalsIgnoreCase(req)){ %>
+  		<div id="laborHeader">
+			  <jsp:include page="/estimateUI/estimateMainHeader.jsp"></jsp:include>
+		</div>
+		<div id="wrapper" style="width: 1100px;">
+			<div id="mainContent" style="padding:0px">
+ <%} %>
+				<div class="mainDiv">
+					<div style="border-color: 1px solid red;"></div>
+						<div class="mainContent font" align="center">
+							<span id='processing' style='display:none;position:absolute;margin-top:170px;margin-left:125px;' ><img src ='<%=path %>/estimateUI/images/Loading3.gif' style='height:100px;width:100px;margin-left:300px;margin-top:150px;'></span>	
+							<jsp:include page="/estimateUI/graps.jsp">
+								<jsp:param value="100" name="totalCustomer"/>
+								<jsp:param value="500" name="totalVehicle"/>
+							</jsp:include>
+			<div style="" class="mainReport">		
+		<table border="0" cellspacing="0" cellpadding="0" class="mainTableW" style="padding-bottom: 10px;">
+			<tr>
+				<td >
+					<table cellpadding="0" cellspacing="0" style="width: 100%;" class="tableHeader">
+						<tr>
+							<td class="messageHeader" nowrap="nowrap">Labor: Monthly Report <%if(req!=null && !"null".equals(req) && "reports".equalsIgnoreCase(req)){ %><span onclick="backToMainReport()" style="margin-top:-4px;padding: 8px;margin-right:16px;position: absolute;right: 5px; background: #fff;color: #222;cursor: pointer;font-size: 13px; border-radius: 2px;">Back</span><%} %></td>	    									
+						</tr>
+					</table>	
+				</td>
+			</tr>
+		    <tr>
+	    		<td style="width: 75%;" rowspan="2" valign="top">
+					<table width="100%" border="0" cellspacing="0">  
+						<tr style="background-color: #E6EEFF;">	
+							<td>
+								<div id="searchDiv" style="margin-top: 10px;">
+										<div style="display: inline;margin-left: 4px;font-size: 13.5px;font-weight: bold;float:left;margin-top:5px;margin-right: 5px;">Year&nbsp;
+											<select name="year" id="year" onchange="showTraceByYear()" style="width: 60px;">
+												<%for(int i = year-5 ;i <= year+5;i++){ %>
+													<option value="<%=i %>" <%if(year==i){ %>selected="selected" <%} %>><%=i %></option>
+												<%} %>		
+											</select> 
+										</div>
+									<img src="<%=path %>/estimateUI/images/printer1.png" style="width:30px;height:30px;margin-left:235px;cursor:pointer;" onclick="window.print();"/>
+									<ul style="display: inline-table; margin-top: 2px;margin-bottom: 0px;float: left;">	
+										<li style="width: 40px"><a id="0" onclick="showTrace(this);"><font size="3.5px" style="padding-left: 3;font-weight: bold;">Jan</font></a></li>
+										<li style="width: 40px"><a id="1" onclick="showTrace(this);"><font size="3.5px" style="padding-left: 3;font-weight: bold;">Feb</font></a></li>
+										<li style="width: 40px"><a id="2" onclick="showTrace(this);"><font size="3.5px" style="padding-left: 3;font-weight: bold;">Mar</font></a></li>
+										<li style="width: 40px"><a id="3" onclick="showTrace(this);"><font size="3.5px" style="padding-left: 3;font-weight: bold;">Apr</font></a></li>
+										<li style="width: 40px"><a id="4" onclick="showTrace(this);"><font size="3.5px" style="padding-left: 3;font-weight: bold;">May</font></a></li>
+										<li style="width: 40px" ><a id="5" onclick="showTrace(this);"><font size="3.5px" style="padding-left: 3;font-weight: bold;">Jun</font></a></li>
+										<li style="width: 40px"><a id="6" onclick="showTrace(this);"><font size="3.5px" style="padding-left: 3;font-weight: bold;">Jul</font></a></li>
+										<li style="width: 40px"><a id="7" onclick="showTrace(this);"><font size="3.5px" style="padding-left: 3;font-weight: bold;">Aug</font></a></li>
+										<li style="width: 40px"><a id="8" onclick="showTrace(this);"><font size="3.5px" style="padding-left: 3;font-weight: bold;">Sep</font></a></li>
+										<li style="width: 40px"><a id="9" onclick="showTrace(this);"><font size="3.5px" style="padding-left: 3;font-weight: bold;">Oct</font></a></li>
+										<li style="width: 40px" ><a id="10" onclick="showTrace(this);"><font size="3.5px" style="padding-left: 3;font-weight: bold;">Nov</font></a></li>
+										<li style="width: 40px"><a id="11" onclick="showTrace(this);"><font size="3.5px" style="padding-left: 3;font-weight: bold;">Dec</font></a></li>
+									</ul>
+									<input type="hidden" name="month" id="month" value="<%=month %>"/>
+									
+								</div>
+							</td>
+				  	  </tr>
+				  	  <tr style="background-color: #E6EEFF;">
+				  		<td>
+				  			
+							<div style="margin-top: 10px;" id="filterDiv">
+								<input type="text" style='width:600px;padding:6px;border-radius:5px;margin-left:5px;'name="technicianFilter" placeholder="Search by technician" id='techFilter' onkeyup="filterTech(this)">
+								<script>$(function() {$( "#fromDate" ).datepicker({ minDate: "", maxDate: "", changeMonth: true,changeYear: true });});</script>
+								<span style="margin-left: 45px;font-size: 13.5px;background-color: #E6EEFF;color: #000;height: 24px;padding: 5px;font-weight: bold;" >From</span>
+								<input type="text"  name="fromDate" style="width: 80px;margin-left: 0px;padding-left: 4px;height: 24px;" id="fromDate" value="<%= fromDate %>" readonly="readonly"/>
+								<span style="margin-left: 2px;font-size: 13.5px;background-color:#E6EEFF;color: #000;height: 24px;padding: 5px;font-weight: bold;">To</span>
+								<script>$(function() {$( "#toDate" ).datepicker({ minDate: "", maxDate: "", changeMonth: true,changeYear: true });});</script>
+								<input type="text"  name="toDate" id="toDate" style="width: 80px;margin-left: 0px;padding-left: 4px;height: 24px;" value="<%= toDate %>" readonly="readonly"/>
+								<span><input type="button" onclick="searchRecords()" style="margin-left: 48px;" class="btn" value="Search" /></span>
+							</div>
+										
+						</td>
+					 </tr>
+					 <tr style="background-color: #E6EEFF;">
+					 	<td>&nbsp;</td>
+					 </tr>
+				     <tr>
+				  		<td >
+							<table width="100%" border="0" cellspacing="0" id="table" class="sortable techTable">
+								<thead>
+								  <tr> 
+								  	<th width="20%" class="nosort" nowrap="nowrap"><h3 style="font-size: 15px;text-align: center;">Technician</h3></th>
+									<th width="10%"  nowrap="nowrap"><h3 style="font-size: 15px;text-align: center;">Date</h3></th>
+									<th width="5%" nowrap="nowrap" style="text-align: center;"><h3 style="font-size: 15px;">WO#</h3></th>
+									<th width="30%" nowrap="nowrap" style="text-align: left;"><h3 style="font-size: 15px;">Jobs</h3></th>
+									<th width="5%" nowrap="nowrap" style="text-align: center;" class="nosort"><h3 style="font-size: 15px;">Billable</h3></th>
+									<th  class="nosort" width="15%" nowrap="nowrap" style="text-align: center;" >
+										<h3 style="font-size: 15px;">Time</h3>
+										<span style='float:left;font-size:14px;padding-left:5px;'>Start</span>
+										<span style='float:right;font-size:14px;padding-right:5px;'>End</span>
+									</th>
+								  	<th width="10%" nowrap="nowrap" style="text-align: center;"><h3 style="font-size: 15px;">Actual hr</h3></th>
+								  	<th width="10%" nowrap="nowrap" style="text-align: center;"><h3 style="font-size: 15px;">Action</h3></th>
+								  </tr>
+							  </thead>
+							  <tbody >
+							 	  <%  boolean recExists = false;
+							 	  	  if(techList != null && !techList.isEmpty()){
+							 	  	  	recExists = true;
+							 	  	  	int count=0;
+							 	  		for(Object[] object : techList){
+							 	  %>
+							  	<tr >
+							  		 <td style="vertical-align: top;padding: 10px;text-align: left;font-size: 15px;"><%=object[4] == null ? "" : (String)object[4] %></td>
+									 <td style="vertical-align: middle;padding: 10px;text-align: center;font-size: 14px;" ><%=object[0] == null ? "" : simpleDateFormat.format(object[0]) %></td>
+									 <td style="text-align: right;padding: 10px;text-align: center;font-size: 14px;"><%=object[1]==null?"":object[1] %></td>
+									 <td style="text-align: right;padding: 	10px;text-align: left;font-size: 14px;"><%=object[2]!=null?object[2]:"" %>  </td>
+									
+									 <td style="text-align: right;padding: 10px;font-size: 14px;"><%=decimalFormat.format((object[3]!=null?((BigDecimal)object[3]).doubleValue():0))%></td>
+								  	<td style="text-align: right;padding 10px;font-size: 14px;" id="startEndTimeTd">
+								  		<%if(object[6]!=null && object[6]!=""){ %>
+								  			<span id='start' style="float: left;"><%=object[6]==null?"":object[6] %></span>
+								  		<%}else{ %>	
+								  			<input type="text" name="startHour" onchange="calculateHour(this)" style='width:60px;padding:5px;margin-right:2px;text-align:right;float:left;margin-left:5px;'>
+								  		<%}
+								  		  if(object[7]!=null && object[7]!=""){	
+								  		%>
+								  			<span id="end" style="float: right;"><%=object[7]==null?"":object[7] %></span>
+								  		<%}else{ %>
+								  			<input onchange="calculateHour(this)" type="text" name="endHour" onkeyup="calculateHour(this)" style='width:60px;padding:5px;text-align:right;margin-right:5px;'>
+								  		<%} %>
+								  		</td>
+									<td style="text-align: right;padding: 10px;font-size: 14px;" id="act">
+										<%if(object[8]!=null && object[8]!=""){%>
+											<%=object[8]==null?"":object[8] %>
+										<%}else{ %>
+											<input type="text" name="totalHour"  style='width:60px;padding:5px;text-align:right;'>
+										<%} %>
+									</td>
+									<td style="text-align: right;padding: 10px;font-size: 14px;" serviceId="<%=object[5]!=null?object[5]:0 %>">
+									<%if(object[8]!=null && object[8]!=""){%>
+									<span onclick='editTechHour(this)' onlyPackage='<%=object[9] %>' style='cursor:pointer;background:green;color:#fff;padding:10px 13px;border-radius:5px;text-align:center;'>Edit</span>
+									<%}else{ %>
+									<span onclick="saveTechHour(this)" onlyPackage='<%=object[9] %>' style="background:#499bea;color:#fff;padding:10px;border-radius:5px;text-align:center;cursor:pointer;">Save</span></td>
+									<%} %>
+								</tr>
+								
+								<%
+								count++;
+								}}if(!recExists){%>
+								
+								<tr>
+								  <td colspan="8" style="background: #ffffd3; text-align: center; color: #990000;font-size: 12px;"><B>No Record Found.</B></td>
+								</tr>
+							  <%}%>
+							  </tbody>
+							  	<%if(recExists){ %>
+								  <tr>
+								  	<td colspan="8" style="background: #ebebe4; height: 27px;font-size: 11px;">
+										<div style="display:inline;" id="controls">
+											<div id="perpage" style="margin-left: 9px;">
+												<select onChange="sorter.size(this.value)">
+													<option value="5">5</option>
+													<option value="10" >10</option>
+													<option value="20" selected="selected">20</option>
+												</select>
+												<span>Entries Per Page</span>
+											</div><!-- EOF PREPAGE -->
+											<div id="navigation">
+												<img src="<%=path%>/upm/images/first.gif" alt="First Page" onClick="sorter.move(-1,true)" />
+												<img src="<%=path%>/upm/images/previous.gif" alt="Previous" onClick="sorter.move(-1)" />
+												<img src="<%=path%>/upm/images/next.gif" alt="Next" onClick="sorter.move(1)" />
+												<img src="<%=path%>/upm/images/last.gif" alt="Last Page" onClick="sorter.move(1,true)" />
+											</div><!-- EOF NAVIGATION -->
+											<div id="text">
+												Displaying Page 
+												<b>&nbsp;<span id="currentpage"></span>&nbsp;</b> 
+												of <b><span id="pagelimit"></span></b>
+											</div><!-- EOF TEXT -->
+										</div><!-- EOF CONTROLS -->
+									</td>
+								</tr>
+								<%} %>	
+							</table>
+						</td>
+					 </tr>	
+		   		  </table>
+   			  </td>
+  			</tr>
+		</table>
+		</div>
+		<div class="backFrame"></div>
+		<div class="dataDiv">
+			<div class="closeMe">&nbsp;</div>
+			<div class="bigGraph" style=""></div>
+		</div>
+	  </div>
+	</div>
+	<%if(req==null || "".equals(req) || "null".equalsIgnoreCase(req)){ %>
+	 </div>
+		   <div style="position: relative;width: 100%;bottom: 0px;">
+			  <jsp:include page="/estimateUI/estimateMainFooter.jsp"></jsp:include>	
+		   </div>  
+	  </div>
+	  <%} %>
+ </body> 
+<%if(recExists){ %>
+<script type="text/javascript" src="<%=path%>/upm/scriptDesc.js"></script>
+<script type="text/javascript">
+	var sorter = new TINY.table.sorter("sorter");
+	sorter.head = "head";
+	sorter.asc = "asc";
+	sorter.desc = "desc";
+	sorter.paginate = true;
+	sorter.currentid = "currentpage";
+	sorter.limitid = "pagelimit";
+	sorter.init("table",1);
+	sorter.size(20);
+</script>
+<%} %>
+
+<script type="text/javascript">
+	showSelected('<%= month%>');
+	
+</script>
+<script type="text/javascript">
+            $(document).ready(function() {
+                $('input[name=startHour],input[name=endHour]').timepicker({
+                   
+                });
+            });
+            
+</script>
+</html>

@@ -1,0 +1,266 @@
+	public String getLabordetails1() throws ParseException{
+		try{
+			List<Object[]> list= null;
+			System.err.println("STARTING");
+			
+			HttpSession session=ServletActionContext.getRequest().getSession();
+			RegistrationVO registrationVO = (RegistrationVO) session.getAttribute(AppConstants.USER_SESSION_BEAN);
+			String monthYear = request.getParameter("monthYear") != null ? request.getParameter("monthYear") : new SimpleDateFormat("MMM, yyyy").format(new Date());
+			String endDate = request.getParameter("endDate") != null ? request.getParameter("endDate") : null;
+	
+			 if(registrationVO != null){
+				 long bussinessId=registrationVO.getId();
+				 list = new EstimateDAO().getLaborDetails(bussinessId,monthYear,  endDate);	
+				 JSONObject tempJson=null;
+			 		JSONObject mainJson=new JSONObject();
+					JSONArray  jsonArr = new JSONArray();
+					if(!list.isEmpty() && list!=null){
+						for(Object[] data : list){
+							tempJson = new JSONObject();
+					    	 tempJson.put("weak",data[0]);
+					    	 tempJson.put("estimate_id",data[1]);
+					    	 tempJson.put("description",data[2]);
+					    	 tempJson.put("hours",data[3]);
+					    	 tempJson.put("tech",data[4]);
+					    	 tempJson.put("description_id",data[5]);
+					    	 tempJson.put("total_hr",data[6]==null?"":data[6]);
+					    	 tempJson.put("mail",data[7]);
+					    	 tempJson.put("hpw",data[8]);
+							 jsonArr.add(tempJson);
+						}
+						// end of for
+						
+						mainJson.put("laborList", jsonArr);
+						request.setAttribute("laborSheet", mainJson.toJSONString());
+						System.out.println(mainJson.toJSONString());
+				 
+					}
+					request.setAttribute("endDate", endDate);
+			 }
+					request.setAttribute("monthYear", monthYear);
+		}catch(Exception e){
+ 			System.out.println(e);
+		}
+		
+		return ActionSupport.SUCCESS;
+	}
+
+	
+	---------------------------
+	DAO
+	------------------------
+		public List<Object[]> getLaborDetails(long userId,String monthYear, String endDate) throws ParseException{
+		System.out.println(userId+monthYear+endDate);
+		List<Object[]> list1 = null;
+		List<Object[]> list2 = null;
+		List<Object> tempList = null;
+		
+		
+		
+		DateFormat format1 = new SimpleDateFormat("MMM, yyyy");
+		DateFormat format2 = new SimpleDateFormat("MM/dd/yyyy");
+		Calendar cal = Calendar.getInstance();
+		cal.setTime(format1.parse(monthYear));
+		cal.set(Calendar.DAY_OF_MONTH, 1);
+		Date d =cal.getTime();
+	    String fromDate =	 format2.format(d);
+		
+	    cal.add(Calendar.MONTH, 1);  
+	    cal.set(Calendar.DAY_OF_MONTH, 1);  
+	    cal.add(Calendar.DATE, -1);  
+		Date ddd = cal.getTime();
+		String toDate =format2.format(ddd);
+		String end =null;
+		if(endDate!=null){
+			 end = format2.format(format1.parse(endDate));
+		}
+		
+		
+		String packServiceQuery = 
+				"select ER.ID  from ESTIMATE_DESCRIPTION ED, ESTIMATE_PACKAGE_REL ER ,ESTIMATE_MAIN EM  where EM.SENDER_ID=:userId AND ED.DESCRIPTION_ID=ER.ESTIMATE_ID AND ER.TECH IS NOT NULL "+
+				"MINUS "+
+				"select EP.PACKAGE_ID from ESTIMATE_DESCRIPTION ED, ESTIMATE_PACKAGE_REL ER,ESTIMATE_MAIN EM, ESTIMATE_PACKAGE EP, ESTIMATE_SERVICE ES "+   
+				"where EM.SENDER_ID=:userId AND ED.DESCRIPTION_ID=ER.ESTIMATE_ID AND ER.ID=EP.PACKAGE_ID AND EP.ID=ES.PACKAGE_ID and ES.SERVICE_NAME is not null and er.tech is not null ";
+										
+			tempList = getSession().createSQLQuery(packServiceQuery).setLong("userId",userId ).list();
+
+		if(tempList!=null && !tempList.isEmpty()){
+			
+			String s2=
+					 "SELECT "
+					+ " TO_CHAR( em.creation_date, 'w' )  AS week, "
+					+ "  EM.ESTIMATE_ID , "
+					+ "  ESD.DESCRIPTION, "
+					+ "  ESD.HOURS, "
+					+ "  ESD.TECH, "
+					+ "  ESD.DESCRIPTION_ID, "
+					+ "  ESD.TOTAL_HR NO ,"
+					+ "  (select distinct Max(EMAIL) from registration where BUSINESS_ID=:userId And FIRST_NAME like  NVL(SUBSTR(ESD.TECH, 0, INSTR(ESD.TECH, ' ')-1), ESD.TECH) or (r.FIRST_NAME||' '||LAST_NAME) LIKE NVL(SUBSTR(ESD.TECH, 0, INSTR(ESD.TECH, ' ')-1), ESD.TECH)  and DELETE_FLAG='N') mail "
+					+ " ,(select  max(ed.HOURS_PER_WEEK) from  registration reg "
+					+ "left join employee_detail ed on ed.EMP_ID=reg.id where reg.business_id=:userId ) hpw "
+					+ "FROM registration r,EMPLOYEE_DETAIL emp_d,ESTIMATE_MAIN EM "
+					+ "LEFT JOIN ESTIMATE_DESCRIPTION ED "
+					+ "ON EM.ESTIMATE_ID = ED.ESTIMATE_ID "
+					+ "LEFT JOIN ESTIMATE_SERVICE ES "
+					+ "ON ES.DESCRIPTION_ID = ED.DESCRIPTION_ID "
+					+ "LEFT JOIN ESTIMATE_SER_DES ESD "
+					+ "ON ES.SERVICE_ID = ESD.SERVICE_ID "
+					+ "WHERE ES.DECLINED_FLAG='N' "
+					+ "AND EM.SENDER_ID  =:userId "
+					+ "AND (ESD.HOURS       IS NOT NULL "
+					+ "AND ESD.HOURS  !=0) "
+					+ "AND ESD.Tech         IS NOT NULL "
+					+ "AND (ESD.Tech        IN "
+					+ "  (SELECT r.FIRST_NAME "
+					+ "    || ' ' "
+					+ "    || r.LAST_NAME "
+					+ "  FROM registration r "
+					+ "  WHERE BUSINESS_ID=:userId "
+					+ "  ) "
+					+ "OR ESD.Tech IN "
+					+ "  ( SELECT r.FIRST_NAME FROM registration r WHERE BUSINESS_ID=:userId "
+					+ "  ) ) "
+					+ "  and r.business_id=:userId "
+					+ "AND EM.CREATION_DATE >=TO_DATE('"+fromDate+" 00:00:00', 'MM/DD/YYYY HH24:MI:SS') "
+					//+ "AND EM.CREATION_DATE <=TO_DATE('06/30/2016 23:59:59', 'MM/DD/YYYY HH24:MI:SS') "
+					+(endDate != null ? "AND EM.CREATION_DATE <=TO_DATE('"+end+" 23:59:59', 'MM/DD/YYYY HH24:MI:SS')"
+							: "AND EM.CREATION_DATE <=TO_DATE('"+toDate+" 23:59:59', 'MM/DD/YYYY HH24:MI:SS')") 
+					
+					
+					
+					+ "UNION "
+					+ "SELECT "
+					+ "  TO_CHAR( em.creation_date, 'w' )     AS week, "
+					+ "  EM.ESTIMATE_ID, "
+					+ "  ESD.DESCRIPTION, "
+					+ "  ESD.HOURS, "
+					+ "  ESD.TECH, "
+					+ "  ESD.DESCRIPTION_ID, "
+					+ "  ESD.TOTAL_HR NO, "
+					+ "    (select distinct MAX(EMAIL) from registration where BUSINESS_ID=:userId  And FIRST_NAME like  NVL(SUBSTR(ESD.TECH, 0, INSTR(ESD.TECH, ' ')-1), ESD.TECH) or (r.FIRST_NAME||' '||LAST_NAME) LIKE NVL(SUBSTR(ESD.TECH, 0, INSTR(ESD.TECH, ' ')-1), ESD.TECH)  and DELETE_FLAG='N') mail "
+					+ " ,(select  max(ed.HOURS_PER_WEEK)  from  registration reg "
+					+ "left join employee_detail ed on ed.EMP_ID=reg.id where reg.business_id=:userId ) hpw "
+					+ "FROM registration r,EMPLOYEE_DETAIL emp_d,ESTIMATE_MAIN EM "
+					+ "LEFT JOIN ESTIMATE_DESCRIPTION ED "
+					+ "ON EM.ESTIMATE_ID = ED.ESTIMATE_ID "
+					+ "LEFT JOIN ESTIMATE_PACKAGE_REL EPR "
+					+ "ON ED.DESCRIPTION_ID = EPR.ESTIMATE_ID "
+					+ "LEFT JOIN ESTIMATE_PACKAGE EP "
+					+ "ON EP.PACKAGE_ID = EPR.ID "
+					+ "LEFT JOIN ESTIMATE_SERVICE ES "
+					+ "ON ES.PACKAGE_ID = EP.ID "
+					+ "LEFT JOIN ESTIMATE_SER_DES ESD "
+					+ "ON ESD.SERVICE_ID     = ES.SERVICE_ID "
+					+ "WHERE ES.DECLINED_FLAG='N' "
+					+ "AND EM.SENDER_ID      =:userId "
+					+ "AND esd.tech         IS NOT NULL "
+					+ "AND (ESD.Tech        IN "
+					+ "  (SELECT r.FIRST_NAME "
+					+ "    || ' ' "
+					+ "    || r.LAST_NAME "
+					+ "  FROM registration r "
+					+ "  WHERE BUSINESS_ID=:userId "
+					+ "  ) "
+					+ "OR ESD.Tech IN "
+					+ "  ( SELECT r.FIRST_NAME FROM registration r WHERE BUSINESS_ID=:userId "
+					+ "  ) )and r.business_id=:userId "
+					//+ "AND EM.CREATION_DATE >=TO_DATE('06/01/2016  00:00:00', 'MM/DD/YYYY HH24:MI:SS') "
+					//+ "AND EM.CREATION_DATE <=TO_DATE('06/30/2016 23:59:59', 'MM/DD/YYYY HH24:MI:SS') "
+										
+					+ "AND EM.CREATION_DATE >=TO_DATE('"+fromDate+" 00:00:00', 'MM/DD/YYYY HH24:MI:SS') "
+					//+ "AND EM.CREATION_DATE <=TO_DATE('06/30/2016 23:59:59', 'MM/DD/YYYY HH24:MI:SS') "
+					+(endDate != null ? "AND EM.CREATION_DATE <=TO_DATE('"+end+" 23:59:59', 'MM/DD/YYYY HH24:MI:SS')"
+							: "AND EM.CREATION_DATE <=TO_DATE('"+toDate+" 23:59:59', 'MM/DD/YYYY HH24:MI:SS')") 
+
+					
+					+ "UNION "
+					+ "SELECT "
+					+ "  TO_CHAR( em.creation_date, 'w' )     AS week, "
+					+ "  EM.ESTIMATE_ID, "
+					+ "  'Package:' "
+					+ "  ||EPR.PACKAGE_NAME, "
+					+ "  0 , "
+					+ "  EPR.TECH, "
+					+ "  EPR.ID, "
+					+ "  EPR.TOTAL_HR YES, "
+					+ "  (select distinct max(EMAIL) from registration where BUSINESS_ID=:userId  And FIRST_NAME like  NVL(SUBSTR(EPR.TECH, 0, INSTR(EPR.TECH, ' ')-1), EPR.TECH) or (r.FIRST_NAME||' '||LAST_NAME) LIKE NVL(SUBSTR(EPR.TECH, 0, INSTR(EPR.TECH, ' ')-1), EPR.TECH)  and DELETE_FLAG='N') mail "
+					+ "  ,(select max(ed.HOURS_PER_WEEK) from  registration reg "
+					+ "left join employee_detail ed on ed.EMP_ID=reg.id where reg.business_id=:userId ) hpw "
+					+ "FROM registration r,EMPLOYEE_DETAIL emp_d,ESTIMATE_MAIN EM, "
+					+ "  ESTIMATE_PACKAGE_REL EPR, "
+					+ "  ESTIMATE_DESCRIPTION ED "
+					+ "WHERE EPR.ID IN "+tempList.toString().replace("[","(").replace("]",")")
+					//+ "(1085,1288,1310,1324,1453,1470,1482,1492,1494,1546,1570,1735,1736,1745,1812,1816,1822,1861,1894,1906,1938,2069,2082,2088,2092,2095,2097,2173,2179,2180,2181,2182,2183,2184,2185,2193,2202,2214,2216,2251,2252,2253,2277,2278,2303,2328,2366,2417,2460,2564,2935,2994,3007,3011,3014,3039,3104,3131,3145,3149,3170,3183,3212,3257,3281,3289,3290,3291,3292,3297,3298,3306,3307,3308,3309,3312,3313,3315,3316,3317,3318,3320,3321,3323,3324,3325,3326,3327,3328,3340,3341,3342,3344,3408,3417,3418,3425,3464,3495,3496,3505,3558,3565,3566,3608,3617,3618,3629,3724,3739,3741,3742,3743,3809,3820,3865,3901,3928,3929,3933,4008,4014,4026,4036,4041,4056,4058,4144,4188,4203,4204,4338,4508,4559,4788,4896,4897,4898,4899,4900,4988,5004,5185,5250,5289,5315,5334,5338,5339,5361,5391,5490,5518,5539,5565,5566,5582,5597,5608,5659,5708,5768,5774,5900,5973,5980,5984,6015,6102,6133,6140,6144,6145,6151,6182,6186,6193,6194,6195,6220,6236,6239,6276,6280,6286,6311,6324,6347,6350,6373,6375,6376,6447,6461,6488,6491,6629,6823,6847,6853,6935,6936,6944,6954,7069,7157,7167,7292,7338,7391,7437,7507,7625,7633,7685,7967,7979,8181,8294,8329,8330,8398,8409,8566,8581,8582,8625,8636,8649,8710,8711,8714,8719,8824,8825,8840,8859,8998,9059,9096,9097,9100,9139,9178,9212,9365,9382,9466,9467,9468,9469,9514,9515,9567,9578,9579,9584,9591,9674,9691,9721,9729,9798,9802,9803,9838,9885,9909,9910,9956,9973,9994,10091,10092,10108,10129,10130,10168,10179,10252,10316,10381,10394,10531,10557,10558,10591,10601,10639,10647,10864,10875,11172,11173,11190,11199,11239,11255,11392,11398,11479,11522,11524,11525,11528,11552,11576,11594,11595,11613,11615,11657,11667,11679,11700,11701,11731,11748,11749,11752,11791,11812,11813,12020,12044,12060,12322,12323,12505,12548,12592,12598,12626,12628,12681,12682,12683,12684,12709,12713,12714,12743,12775,12776,12777,12810,12814,12843,12872,12899,12923,12953,12954,13008,13009,13038,13039,13041,13172,13187,13246,13379,13437,13442,13533,13570,13575,13576,13615,13631,13646,13647,13707,13821,13827,13828,13846,13900,13902,13988,13997,14005,14053,14065,14066,14081,14115,14140,14161,14166,14316,14343,14368,14371,14388,14438,14487,14496,14507,14524,14531,14575,14643,14686,14723,14784,14794,14812,14817,14839,14840,14864,14878,14886,14887,14896,14900,14963,14976,14989,15056,15062,15066,15311,15317,15384,15385,15389,15390,15393,15434,15437,15438,15439,15442,15443,15444,15445,15446,15447,15449,15478,15589,15827,15828,15862,15893,15908,15910,15931,16006,16145,16146) "
+					+ "AND EM.ESTIMATE_ID    =ED.ESTIMATE_ID "
+					
+					+ "AND ED.DESCRIPTION_ID = EPR.ESTIMATE_ID "
+					+ "AND Epr.Tech         IS NOT NULL "
+					+ "AND (Epr.Tech        IN "
+					+ "  (SELECT r.FIRST_NAME "
+					+ "    || ' ' "
+					+ "    || r.LAST_NAME "
+					+ "  FROM registration r "
+					+ "  WHERE BUSINESS_ID=:userId "
+					+ "  ) "
+					+ "OR Epr.Tech IN "
+					+ "  ( SELECT r.FIRST_NAME FROM registration r WHERE BUSINESS_ID=:userId "
+					+ "  ) )and r.business_id=:userId "
+					+ "AND EPR.DECLINED_FLAG ='N' "
+				//	+ "AND EM.CREATION_DATE >=TO_DATE('06/01/2016 00:00:00', 'MM/DD/YYYY HH24:MI:SS') "
+				//	+ "AND EM.CREATION_DATE <=TO_DATE('06/30/2016 23:59:59', 'MM/DD/YYYY HH24:MI:SS') "
+					
+					+ "AND EM.CREATION_DATE >=TO_DATE('"+fromDate+" 00:00:00', 'MM/DD/YYYY HH24:MI:SS') "
+					//+ "AND EM.CREATION_DATE <=TO_DATE('06/30/2016 23:59:59', 'MM/DD/YYYY HH24:MI:SS') "
+					+(endDate != null ? "AND EM.CREATION_DATE <=TO_DATE('"+end+" 23:59:59', 'MM/DD/YYYY HH24:MI:SS')"
+							: "AND EM.CREATION_DATE <=TO_DATE('"+toDate+" 23:59:59', 'MM/DD/YYYY HH24:MI:SS')") 
+					+ "AND EM.SENDER_ID      =:userId "
+					+ "ORDER BY Tech";
+			
+
+			
+			Query query1= getSession().createSQLQuery(s2).setLong("userId",userId );
+			System.out.println("hello devashish;;;;;;;;;;;;;;;;;;;;;;-------------------------");
+		
+			
+			list2=	query1.list();
+			
+		
+			} // end of templist data is exit or not
+			
+		System.out.println(list2.size());
+		for(Object o[] : list2){
+			System.out.println(o[0]);
+			System.out.println(o[1]);
+			System.out.println(o[2]);
+			System.out.println(o[3]);
+			System.out.println(o[4]);
+			System.out.println(o[5]);
+			System.out.println(o[6]);
+			System.out.println(o[7]);
+		}
+				
+			return list2;
+			
+		}	
+		
+		----------------------
+			<action name ="laborAnalysis" class="com.estimate.action.EstimateReportsAction" method ="getLabordetails1">
+				<result name ="success">/estimateUI/laborAnalysis.jsp</result>
+		</action>
+		
+		
+		
+		
+		json data 
+		
+		{"laborList":[{"mail":"bobgray.sm@gmail.com","total_hr":"","description_id":79852,"hours":0.9,"description":"Power Steering Line R&R","estimate_id":21039,"hpw":40,"weak":"4","tech":"Bob Myers "},{"mail":"bobgray.sm@gmail.com","total_hr":"","description_id":79853,"hours":1.1,"description":"Power Steering Line R&R","estimate_id":21039,"hpw":40,"weak":"4","tech":"Bob Myers "},{"mail":"bobgray.sm@gmail.com","total_hr":"","description_id":79854,"hours":1.2,"description":"Power Steering Line R&R","estimate_id":21039,"hpw":40,"weak":"4","tech":"Bob Myers "},{"mail":"bobgray.sm@gmail.com","total_hr":"","description_id":79855,"hours":2.4,"description":"Power Steering Line R&R","estimate_id":21039,"hpw":40,"weak":"4","tech":"Bob Myers "},{"mail":"gautam18@shiftmobility.com","total_hr":"","description_id":79849,"hours":0.5,"description":"Power Steering System Leak Inspection","estimate_id":21039,"hpw":40,"weak":"4","tech":"Rahul Kumar "},{"mail":"sergiogarcia1234@gmail.com","total_hr":"","description_id":79850,"hours":2.3,"description":"Power Steering Pump R&R","estimate_id":21039,"hpw":40,"weak":"4","tech":"Sergio Garcia "},{"mail":"sergiogarcia1234@gmail.com","total_hr":"","description_id":79851,"hours":2.4,"description":"Power Steering Pump R&R","estimate_id":21039,"hpw":40,"weak":"4","tech":"Sergio Garcia "}]}
+		{"laborList":[{"mail":"bobgray.sm@gmail.com","total_hr":"","description_id":75735,"hours":1.2,"description":"Brake Pads R&R-  Front- Disc","estimate_id":19780,"hpw":40,"weak":"1","tech":"Bob"},{"mail":"bobgray.sm@gmail.com","total_hr":"0.20","description_id":78084,"hours":0.9,"description":"Battery R&R","estimate_id":20428,"hpw":40,"weak":"3","tech":"Bob Myers "},{"mail":"greg_myshop@gmail.com","total_hr":"0.20","description_id":77469,"hours":1.3,"description":"Alternator R&R","estimate_id":20291,"hpw":40,"weak":"3","tech":"Greg"},{"mail":"gautam9@shiftmobility.com","total_hr":"","description_id":75912,"hours":7,"description":"labor","estimate_id":19879,"hpw":40,"weak":"2","tech":"Kumar"},{"mail":"sergiogarcia1234@gmail.com","total_hr":"1.15","description_id":78082,"hours":0.3,"description":"Battery R&R","estimate_id":20427,"hpw":40,"weak":"3","tech":"Sergio"},{"mail":"sergiogarcia1234@gmail.com","total_hr":"2.00","description_id":78085,"hours":0.4,"description":"Tire Rotate","estimate_id":20428,"hpw":40,"weak":"3","tech":"Sergio Garcia "},{"mail":"sergiogarcia1234@gmail.com","total_hr":"4.00","description_id":78087,"hours":1.2,"description":"Wheel Alignment Adjust-  Front","estimate_id":20428,"hpw":40,"weak":"3","tech":"Sergio Garcia "},{"mail":"sergiogarcia1234@gmail.com","total_hr":"3.00","description_id":78086,"hours":1.7,"description":"Wheel Alignment Adjust-  Front and Rear","estimate_id":20428,"hpw":40,"weak":"3","tech":"Sergio Garcia "}]}
+		{"laborList":[{"mail":"alan_myshop@gmail.com","total_hr":"0.10","description_id":68250,"hours":0.3,"description":"Battery R&R","estimate_id":17975,"hpw":40,"weak":"2","tech":"Alan"},{"mail":"alan_myshop@gmail.com","total_hr":"","description_id":75166,"hours":0.9,"description":"Brake Pads R&R-  Front- Disc","estimate_id":18899,"hpw":40,"weak":"4","tech":"Alan"},{"mail":"alan_myshop@gmail.com","total_hr":"","description_id":75165,"hours":0.9,"description":"Brake Pads R&R-  Rear- Disc- Both Sides","estimate_id":18899,"hpw":40,"weak":"4","tech":"Alan"},{"mail":"alan_myshop@gmail.com","total_hr":"","description_id":75162,"hours":0.4,"description":"Brake Rotor R&R-  Front- Disc- Each (0.4hrs)","estimate_id":18899,"hpw":40,"weak":"4","tech":"Alan"},{"mail":"alan_myshop@gmail.com","total_hr":"","description_id":75161,"hours":0.3,"description":"Brake Rotor R&R-  Rear- Disc- Each (0.3hrs)","estimate_id":18899,"hpw":40,"weak":"4","tech":"Alan"},{"mail":"alan_myshop@gmail.com","total_hr":"","description_id":75164,"hours":0.4,"description":"Wheel Speed Sensor R&R-  Front- One Side","estimate_id":18899,"hpw":40,"weak":"4","tech":"Alan"},{"mail":"alan_myshop@gmail.com","total_hr":"","description_id":75163,"hours":0.6,"description":"Wheel Speed Sensor R&R-  Rear- One Side","estimate_id":18899,"hpw":40,"weak":"4","tech":"Alan"},{"mail":"asheeshjain@rocketmail.com","total_hr":"0.45","description_id":69028,"hours":0.5,"description":"Engine Oil & Filter R&R","estimate_id":18196,"hpw":40,"weak":"2","tech":"Asheesh"},{"mail":"asheeshjain@rocketmail.com","total_hr":"1.15","description_id":12872,"hours":0,"description":"Package:Cooling system drain & refill","estimate_id":18196,"hpw":40,"weak":"2","tech":"Asheesh"},{"mail":"asheeshjain@rocketmail.com","total_hr":"1.35","description_id":73595,"hours":0.3,"description":"Battery R&R-  - One","estimate_id":18431,"hpw":40,"weak":"3","tech":"Asheesh"},{"mail":"asheeshjain@rocketmail.com","total_hr":"0.15","description_id":73596,"hours":0.5,"description":"Battery R&R-  - One","estimate_id":18431,"hpw":40,"weak":"3","tech":"Asheesh"},{"mail":"asheeshjain@rocketmail.com","total_hr":"","description_id":73474,"hours":0.9,"description":"Brake Pads R&R-  Front- Disc","estimate_id":19317,"hpw":40,"weak":"5","tech":"Asheesh"},{"mail":"asheeshjain@rocketmail.com","total_hr":"","description_id":73475,"hours":0.4,"description":"Brake Rotor R&R-  Front- Disc- Each (0.4hrs)","estimate_id":19317,"hpw":40,"weak":"5","tech":"Asheesh"},{"mail":null,"total_hr":"0.508","description_id":67118,"hours":0.3,"description":"Battery R&R","estimate_id":17673,"hpw":40,"weak":"1","tech":"Ben"}]}
+		{"laborList":[{"mail":"alan_myshop@gmail.com","total_hr":"","description_id":10531,"hours":0,"description":"Package:100K Service","estimate_id":16078,"hpw":40,"weak":"1","tech":"Alan"},{"mail":"alan_myshop@gmail.com","total_hr":"0.15","description_id":66017,"hours":1.2,"description":"Alternator R&R","estimate_id":17313,"hpw":40,"weak":"5","tech":"Alan Blanchard "},{"mail":"asheeshjain@rocketmail.com","total_hr":"0.30","description_id":65519,"hours":1,"description":"Alternator R&R","estimate_id":17309,"hpw":40,"weak":"5","tech":"Asheesh"},{"mail":"bobgray.sm@gmail.com","total_hr":"","description_id":59890,"hours":0.6,"description":"Air Conditioning System Leak Inspection","estimate_id":15830,"hpw":40,"weak":"1","tech":"Bob"},{"mail":"bobgray.sm@gmail.com","total_hr":"","description_id":59887,"hours":0.3,"description":"Battery R&R","estimate_id":15830,"hpw":40,"weak":"1","tech":"Bob"},{"mail":"bobgray.sm@gmail.com","total_hr":"","description_id":59889,"hours":0.9,"description":"Brake Pads R&R-  Front- Disc","estimate_id":15830,"hpw":40,"weak":"1","tech":"Bob"},{"mail":"bobgray.sm@gmail.com","total_hr":"","description_id":59888,"hours":0.9,"description":"Brake Pads R&R-  Rear- Disc- Both Sides","estimate_id":15830,"hpw":40,"weak":"1","tech":"Bob"},{"mail":"bobgray.sm@gmail.com","total_hr":"0.35","description_id":65531,"hours":1.2,"description":"Alternator R&R","estimate_id":17312,"hpw":40,"weak":"5","tech":"Bob"}]}
+
+		
+		grease monkey 
+		june 
+		{"laborList":[{"mail":"lilj2526@yahoo.com","total_hr":"","description_id":78795,"hours":0.9,"description":"Oxygen Sensor R&R","estimate_id":20594,"hpw":40,"weak":"3","tech":"James"},{"mail":"lilj2526@yahoo.com","total_hr":"","description_id":78794,"hours":1.5,"description":"PCV Valve R&R","estimate_id":20594,"hpw":40,"weak":"3","tech":"James"},{"mail":"lilj2526@yahoo.com","total_hr":"","description_id":15862,"hours":0,"description":"Package:Fuel Injection Service","estimate_id":20594,"hpw":40,"weak":"3","tech":"James"},{"mail":"lilj2526@yahoo.com","total_hr":"","description_id":75424,"hours":0.2,"description":"Engine oil Pressure Switch R&R","estimate_id":19756,"hpw":40,"weak":"1","tech":"James Berry "},{"mail":"lilj2526@yahoo.com","total_hr":"","description_id":14840,"hours":0,"description":"Package:Fuel Injection Service","estimate_id":19756,"hpw":40,"weak":"1","tech":"James Berry "},{"mail":"lilj2526@yahoo.com","total_hr":"","description_id":75426,"hours":0.7,"description":"Spark Plugs R&R","estimate_id":19756,"hpw":40,"weak":"1","tech":"James Berry "},{"mail":"lilj2526@yahoo.com","total_hr":"","description_id":75425,"hours":1.5,"description":"Valve Cover Gasket R&R","estimate_id":19756,"hpw":40,"weak":"1","tech":"James Berry "},{"mail":"lilj2526@yahoo.com","total_hr":"","description_id":76288,"hours":0.5,"description":"Oxygen Sensor R&R","estimate_id":19886,"hpw":40,"weak":"2","tech":"James Berry "},{"mail":"lilj2526@yahoo.com","total_hr":"","description_id":15893,"hours":0,"description":"Package:RR Brake Service","estimate_id":20687,"hpw":40,"weak":"3","tech":"James Berry "},{"mail":"mauricebell0406@gmail.com","total_hr":"","description_id":14839,"hours":0,"description":"Package:Full Service- Peak High Mileage Syn Blend","estimate_id":19756,"hpw":40,"weak":"1","tech":"Maurice Bell "},{"mail":"mauricebell0406@gmail.com","total_hr":"","description_id":76841,"hours":1,"description":"Drive shaft carrier bearing replace.","estimate_id":20126,"hpw":40,"weak":"2","tech":"Maurice Bell "},{"mail":"sidwikced@gmail.com","total_hr":"","description_id":15384,"hours":0,"description":"Package:Full Service- Peak High Mileage Syn Blend","estimate_id":20277,"hpw":40,"weak":"2","tech":"Sean"},{"mail":"sidwikced@gmail.com","total_hr":"","description_id":15385,"hours":0,"description":"Package:Transfer Case Drain & Fill- Synthetic","estimate_id":20277,"hpw":40,"weak":"2","tech":"Sean"},{"mail":"sidwikced@gmail.com","total_hr":"","description_id":15389,"hours":0,"description":"Package:Full Service- Peak High Mileage Syn Blend","estimate_id":20278,"hpw":40,"weak":"2","tech":"Sean"},{"mail":"sidwikced@gmail.com","total_hr":"","description_id":15390,"hours":0,"description":"Package:Transfer Case Drain & Fill","estimate_id":20278,"hpw":40,"weak":"2","tech":"Sean"},{"mail":"sidwikced@gmail.com","total_hr":"","description_id":15447,"hours":0,"description":"Package:Differential Service- Front","estimate_id":20320,"hpw":40,"weak":"3","tech":"Sean"},{"mail":"sidwikced@gmail.com","total_hr":"","description_id":15444,"hours":0,"description":"Package:Differential Service- Rear","estimate_id":20320,"hpw":40,"weak":"3","tech":"Sean"},{"mail":"sidwikced@gmail.com","total_hr":"","description_id":15442,"hours":0,"description":"Package:Full Service Peak Syn","estimate_id":20320,"hpw":40,"weak":"3","tech":"Sean"},{"mail":"sidwikced@gmail.com","total_hr":"","description_id":15445,"hours":0,"description":"Package:Radiator Flush & Fill","estimate_id":20320,"hpw":40,"weak":"3","tech":"Sean"},{"mail":"sidwikced@gmail.com","total_hr":"","description_id":15446,"hours":0,"description":"Package:Transfer Case Drain & Fill- Synthetic","estimate_id":20320,"hpw":40,"weak":"3","tech":"Sean"},{"mail":"sidwikced@gmail.com","total_hr":"","description_id":15443,"hours":0,"description":"Package:Transmission Auto Fluid Exchange- Synthetic","estimate_id":20320,"hpw":40,"weak":"3","tech":"Sean"},{"mail":"sidwikced@gmail.com","total_hr":"","description_id":15828,"hours":0,"description":"Package:Differential Service- Rear","estimate_id":20630,"hpw":40,"weak":"3","tech":"Sean"},{"mail":"sidwikced@gmail.com","total_hr":"","description_id":15827,"hours":0,"description":"Package:Full Service- Eco Ultra Syn Blend","estimate_id":20630,"hpw":40,"weak":"3","tech":"Sean"}]}
+		{"laborList":[{"mail":"rpwin50@gmail.com","total_hr":"","description_id":66925,"hours":1,"description":"Left Interior Door Handle R&R","estimate_id":17602,"hpw":40,"weak":"1","tech":"Paul"},{"mail":"rpwin50@gmail.com","total_hr":"","description_id":66926,"hours":1,"description":"Left Power Mirror R&R","estimate_id":17602,"hpw":40,"weak":"1","tech":"Paul"},{"mail":"rpwin50@gmail.com","total_hr":"","description_id":68428,"hours":1,"description":"Driveshaft Assembly - Front","estimate_id":18037,"hpw":40,"weak":"2","tech":"Paul Rivera "},{"mail":"sidwikced@gmail.com","total_hr":"","description_id":13008,"hours":0,"description":"Package:Differential Service- Rear","estimate_id":18293,"hpw":40,"weak":"2","tech":"Sean"},{"mail":"sidwikced@gmail.com","total_hr":"","description_id":13009,"hours":0,"description":"Package:Full Service- Peak Special","estimate_id":18293,"hpw":40,"weak":"2","tech":"Sean"},{"mail":"sidwikced@gmail.com","total_hr":"","description_id":13647,"hours":0,"description":"Package:Differential Service- Front","estimate_id":18757,"hpw":40,"weak":"3","tech":"Sean"},{"mail":"sidwikced@gmail.com","total_hr":"","description_id":13646,"hours":0,"description":"Package:Full Service- Peak Special","estimate_id":18757,"hpw":40,"weak":"3","tech":"Sean"},{"mail":"sidwikced@gmail.com","total_hr":"","description_id":12899,"hours":0,"description":"Package:Differential Service- Rear","estimate_id":18213,"hpw":40,"weak":"2","tech":"Sean Gonzales "},{"mail":"sidwikced@gmail.com","total_hr":"","description_id":13041,"hours":0,"description":"Package:Differential Service- Front","estimate_id":18314,"hpw":40,"weak":"2","tech":"Sean Gonzales "},{"mail":"sidwikced@gmail.com","total_hr":"","description_id":13038,"hours":0,"description":"Package:Differential Service- Rear","estimate_id":18314,"hpw":40,"weak":"2","tech":"Sean Gonzales "},{"mail":"sidwikced@gmail.com","total_hr":"","description_id":13039,"hours":0,"description":"Package:Transfer Case Drain & Fill","estimate_id":18314,"hpw":40,"weak":"2","tech":"Sean Gonzales "},{"mail":"sidwikced@gmail.com","total_hr":"","description_id":14115,"hours":0,"description":"Package:Differential Service- Rear","estimate_id":19084,"hpw":40,"weak":"4","tech":"Sean Gonzales "}]}
+		{"laborList":[{"mail":"lilj2526@yahoo.com","total_hr":"","description_id":11813,"hours":0,"description":"Package:Differential Service- Front","estimate_id":17314,"hpw":40,"weak":"5","tech":"James"},{"mail":"lilj2526@yahoo.com","total_hr":"","description_id":11812,"hours":0,"description":"Package:Full Service Peak Syn","estimate_id":17314,"hpw":40,"weak":"5","tech":"James"},{"mail":"lilj2526@yahoo.com","total_hr":"","description_id":64841,"hours":0.3,"description":"Suspension Shock Absorber R&R-  Rear- One Side","estimate_id":17100,"hpw":40,"weak":"4","tech":"James Berry "},{"mail":"lilj2526@yahoo.com","total_hr":"","description_id":64842,"hours":0.3,"description":"Suspension Strut R&R-  Front","estimate_id":17100,"hpw":40,"weak":"4","tech":"James Berry "},{"mail":"rpwin50@gmail.com","total_hr":"","description_id":10591,"hours":0,"description":"Package:Full Service Peak Syn","estimate_id":16132,"hpw":40,"weak":"1","tech":"Paul"},{"mail":"rpwin50@gmail.com","total_hr":"","description_id":65062,"hours":0.2,"description":"Drive Belt Idler Pulley R&R","estimate_id":17174,"hpw":40,"weak":"4","tech":"Paul Rivera "},{"mail":"rpwin50@gmail.com","total_hr":"","description_id":65063,"hours":0.4,"description":"Drive Belt Tensioner R&R","estimate_id":17174,"hpw":40,"weak":"4","tech":"Paul Rivera "},{"mail":"sidwikced@gmail.com","total_hr":"","description_id":11552,"hours":0,"description":"Package:Differential Service- Front","estimate_id":17079,"hpw":40,"weak":"4","tech":"Sean Gonzales "},{"mail":"sidwikced@gmail.com","total_hr":"","description_id":11679,"hours":0,"description":"Package:Full Service- Peak Special","estimate_id":17174,"hpw":40,"weak":"4","tech":"Sean Gonzales "}]}
